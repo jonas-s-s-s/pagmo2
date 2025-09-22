@@ -179,7 +179,7 @@ endif()
 
 # Eigen3
 if(PAGMO_WITH_EIGEN3)
-    find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+    find_package(Eigen3 REQUIRED NO_MODULE)
 endif()
 
 # NLopt
@@ -470,7 +470,7 @@ install(TARGETS pagmo
 # Setup of the optional deps.
 set(_PAGMO_CONFIG_OPTIONAL_DEPS)
 if(PAGMO_WITH_EIGEN3)
-	set(_PAGMO_CONFIG_OPTIONAL_DEPS "${_PAGMO_CONFIG_OPTIONAL_DEPS}find_package(Eigen3 3.3 QUIET REQUIRED NO_MODULE)\n")
+	set(_PAGMO_CONFIG_OPTIONAL_DEPS "${_PAGMO_CONFIG_OPTIONAL_DEPS}find_package(Eigen3 QUIET REQUIRED NO_MODULE)\n")
 endif()
 if(PAGMO_WITH_NLOPT)
 	set(_PAGMO_CONFIG_OPTIONAL_DEPS "${_PAGMO_CONFIG_OPTIONAL_DEPS}find_package(NLopt 2.6 QUIET REQUIRED NO_MODULE)\n")
