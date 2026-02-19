@@ -83,6 +83,9 @@ PAGMO_DLL_PUBLIC std::vector<pop_size_t> sort_population_mo(const std::vector<ve
 // Selects the best N individuals in multi-objective optimization
 PAGMO_DLL_PUBLIC std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &, pop_size_t);
 
+// Selects the best N individuals in multi-objective optimization with pre-allocated buffers
+PAGMO_DLL_PUBLIC std::vector<pop_size_t> select_best_N_mo_buffered(const std::vector<vector_double> &, pop_size_t, fnds_return_type&);
+
 // Ideal point
 PAGMO_DLL_PUBLIC vector_double ideal(const std::vector<vector_double> &);
 

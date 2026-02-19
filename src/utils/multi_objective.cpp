@@ -421,9 +421,6 @@ vector_double crowding_distance(const std::vector<vector_double> &non_dom_front)
  */
 std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &input_f, pop_size_t N)
 {
-    // Pre-allocated buffer for results of calling fast_non_dominated_sorting_buffered()
-    static fnds_return_type sorting_results{};
-
     if (N == 0u) { // corner case
         return {};
     }
@@ -441,9 +438,9 @@ std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &input
     std::vector<pop_size_t> retval;
     std::vector<pop_size_t>::size_type front_id(0u);
     // Run fast-non-dominated sorting
-    fast_non_dominated_sorting_buffered(input_f, sorting_results);
+    auto tuple = fast_non_dominated_sorting(input_f);
     // Insert all non dominated fronts if not more than N
-    for (const auto &front : std::get<0>(sorting_results)) {
+    for (const auto &front : std::get<0>(tuple)) {
         if (retval.size() + front.size() <= N) {
             for (auto i : front) {
                 retval.push_back(i);
@@ -456,7 +453,7 @@ std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &input
             break;
         }
     }
-    const auto front = std::get<0>(sorting_results)[front_id];
+    auto front = std::get<0>(tuple)[front_id];
     std::vector<vector_double> non_dom_fits(front.size());
     // Run crowding distance for the front
     for (decltype(front.size()) i = 0u; i < front.size(); ++i) {
@@ -475,6 +472,65 @@ std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &input
     }
     return retval;
 }
+
+/// Selects the best N individuals in multi-objective optimization
+/**
+ * select_best_N_mo() with pre-allocated buffers.
+ */
+std::vector<pop_size_t> select_best_N_mo_buffered(const std::vector<vector_double> &input_f, pop_size_t N, fnds_return_type& fnds_buffer)
+{
+    if (N == 0u) { // corner case
+        return {};
+    }
+    if (input_f.size() == 0u) { // corner case
+        return {};
+    }
+    if (input_f.size() == 1u) { // corner case
+        return {0u};
+    }
+    if (N >= input_f.size()) { // corner case
+        std::vector<pop_size_t> retval(input_f.size());
+        std::iota(retval.begin(), retval.end(), pop_size_t(0u));
+        return retval;
+    }
+    std::vector<pop_size_t> retval;
+    std::vector<pop_size_t>::size_type front_id(0u);
+    // Run fast-non-dominated sorting
+    fast_non_dominated_sorting_buffered(input_f, fnds_buffer);
+    // Insert all non dominated fronts if not more than N
+    for (const auto &front : std::get<0>(fnds_buffer)) {
+        if (retval.size() + front.size() <= N) {
+            for (auto i : front) {
+                retval.push_back(i);
+            }
+            if (retval.size() == N) {
+                return retval;
+            }
+            ++front_id;
+        } else {
+            break;
+        }
+    }
+    const auto& front = std::get<0>(fnds_buffer)[front_id];
+    std::vector<vector_double> non_dom_fits(front.size());
+    // Run crowding distance for the front
+    for (decltype(front.size()) i = 0u; i < front.size(); ++i) {
+        non_dom_fits[i] = input_f[front[i]];
+    }
+    vector_double cds(crowding_distance(non_dom_fits));
+    // We now have front and crowding distance, we sort the front w.r.t. the crowding
+    std::vector<pop_size_t> idxs(front.size());
+    std::iota(idxs.begin(), idxs.end(), pop_size_t(0u));
+    std::sort(idxs.begin(), idxs.end(), [&cds](pop_size_t idx1, pop_size_t idx2) {
+        return detail::greater_than_f(cds[idx1], cds[idx2]);
+    }); // Descending order1
+    auto remaining = N - retval.size();
+    for (decltype(remaining) i = 0u; i < remaining; ++i) {
+        retval.push_back(front[idxs[i]]);
+    }
+    return retval;
+}
+
 
 /// Sorts a population in multi-objective optimization
 /**
