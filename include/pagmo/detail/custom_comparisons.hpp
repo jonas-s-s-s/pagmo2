@@ -88,14 +88,14 @@ inline bool less_than_f(T a, T b)
     // Pre-C++20 implementation
     if (!std::isnan(a)) {
         if (!std::isnan(b))
-            return a < b;
+            return a < b; // a < b
         else
-            return After;
+            return After; // a < nan
     } else {
         if (!std::isnan(b))
-            return !After;
+            return !After; // nan < b
         else
-            return false;
+            return false; // nan < nan
     }
 
 #endif
@@ -136,14 +136,14 @@ inline bool greater_than_f(T a, T b)
     // Pre-C++20 implementation
     if (!std::isnan(a)) {
         if (!std::isnan(b))
-            return a > b;
+            return a > b; // a > b
         else
-            return !After;
+            return !After; // a > nan
     } else {
         if (!std::isnan(b))
-            return After;
+            return After; // nan > b
         else
-            return false;
+            return false; // nan > nan
     }
 
 #endif
