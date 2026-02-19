@@ -103,11 +103,43 @@ bool pareto_dominance(const vector_double &obj1, const vector_double &obj2)
     }
     bool found_strictly_dominating_dimension = false;
     for (decltype(obj1.size()) i = 0u; i < obj1.size(); ++i) {
+#if defined(__cpp_impl_three_way_comparison)
+        auto cmp = obj1[i] <=> obj2[i];
+        if (cmp == std::partial_ordering::greater) {
+            return false;
+        }
+
+        if (cmp == std::partial_ordering::less) {
+            found_strictly_dominating_dimension = true;
+            continue;
+        }
+
+        // Handle possible NaN situations
+        if (cmp == std::partial_ordering::unordered) {
+            const bool obj1_nan = std::isnan(obj1[i]);
+            const bool obj2_nan = std::isnan(obj2[i]);
+
+            // greater_than_f returns true if A is NaN and B is valid double, do the same thing as original code
+            if (obj1_nan && !obj2_nan) {
+                return false;
+            }
+
+            // less_than_f returns true if B is NaN and A is valid double, do the same thing as original code
+            if (!obj1_nan && obj2_nan) {
+                found_strictly_dominating_dimension = true;
+            }
+        }
+
+# else
+
+        // Pre-C++20 implementation
         if (detail::greater_than_f(obj1[i], obj2[i])) {
             return false;
         } else if (detail::less_than_f(obj1[i], obj2[i])) {
             found_strictly_dominating_dimension = true;
         }
+
+# endif
     }
     return found_strictly_dominating_dimension;
 }
