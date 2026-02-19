@@ -94,7 +94,7 @@ void reksum(std::vector<std::vector<double>> &retval, const std::vector<pop_size
  *
  * @throws std::invalid_argument if the dimensions of the two objectives are different
  */
-bool pareto_dominance(const vector_double &obj1, const vector_double &obj2)
+inline bool pareto_dominance(const vector_double &obj1, const vector_double &obj2)
 {
     if (obj1.size() != obj2.size()) {
         pagmo_throw(std::invalid_argument,
@@ -256,6 +256,84 @@ fnds_return_type fast_non_dominated_sorting(const std::vector<vector_double> &po
                            std::move(non_dom_rank));
 }
 
+/// Fast non dominated sorting with pre-allocated buffers
+/**
+ * Improved version of fast_non_dominated_sorting(), doesn't allocate any vectors inside the function body, instead lets
+ * user pass an object of type fnds_return_type, as one of the parameters. This improves performance when called inside
+ * hot path loops.
+ *
+ * @param points An std::vector containing the objectives of different individuals. Example
+ * {{1,2,3},{-2,3,7},{-1,-2,-3},{0,0,0}}
+ * @param sorting_results Return values of this function, same as fast_non_dominated_sorting()
+ *
+ * @throws std::invalid_argument If the size of \p points is not at least 2
+ */
+void fast_non_dominated_sorting_buffered(const std::vector<vector_double> &points, fnds_return_type& sorting_results)
+{
+    auto N = points.size();
+    // We make sure to have two points at least (one could also be allowed)
+    if (N < 2u) {
+        pagmo_throw(std::invalid_argument, "At least two points are needed for fast_non_dominated_sorting: "
+                                               + std::to_string(N) + " detected.");
+    }
+
+    // These are the return values, we need to invalidate previous content of these vectors
+    std::vector<std::vector<pop_size_t>>& non_dom_fronts = std::get<0>(sorting_results);
+    std::vector<std::vector<pop_size_t>>& dom_list = std::get<1>(sorting_results);
+    std::vector<pop_size_t>& dom_count = std::get<2>(sorting_results);
+    std::vector<pop_size_t>& non_dom_rank = std::get<3>(sorting_results);
+    non_dom_fronts.clear();
+    non_dom_fronts.resize(1u);
+
+    dom_count.clear();
+    dom_list.resize(N);
+
+    dom_count.assign(N, 0u);
+    non_dom_rank.assign(N, 0u);
+
+    // Start the fast non dominated sort algorithm
+    for (decltype(N) i = 0u; i < N; ++i) {
+        dom_list[i].clear();
+        dom_count[i] = 0u;
+        for (decltype(N) j = 0u; j < i; ++j) {
+            if (pareto_dominance(points[i], points[j])) {
+                dom_list[i].push_back(j);
+                ++dom_count[j];
+            } else if (pareto_dominance(points[j], points[i])) {
+                dom_list[j].push_back(i);
+                ++dom_count[i];
+            }
+        }
+    }
+    for (decltype(N) i = 0u; i < N; ++i) {
+        if (dom_count[i] == 0u) {
+            non_dom_rank[i] = 0u;
+            non_dom_fronts[0].push_back(i);
+        }
+    }
+    // we copy dom_count as we want to output its value at this point
+    auto dom_count_copy(dom_count);
+    auto current_front = non_dom_fronts[0];
+    std::vector<std::vector<pop_size_t>>::size_type front_counter(0u);
+    while (!current_front.empty()) {
+        std::vector<pop_size_t> next_front;
+        for (const decltype(current_front.size()) p : current_front) {
+            for (const decltype(dom_list[p].size()) q : dom_list[p]) {
+                --dom_count_copy[q];
+                if (dom_count_copy[q] == 0u) {
+                    non_dom_rank[q] = front_counter + 1u;
+                    next_front.push_back(q);
+                }
+            }
+        }
+        ++front_counter;
+        current_front = next_front;
+        if (!current_front.empty()) {
+            non_dom_fronts.push_back(current_front);
+        }
+    }
+}
+
 /// Crowding distance
 /**
  * An implementation of the crowding distance. Complexity is \f$ O(MNlog(N))\f$ where \f$M\f$ is the number of
@@ -343,6 +421,9 @@ vector_double crowding_distance(const std::vector<vector_double> &non_dom_front)
  */
 std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &input_f, pop_size_t N)
 {
+    // Pre-allocated buffer for results of calling fast_non_dominated_sorting_buffered()
+    static fnds_return_type sorting_results{};
+
     if (N == 0u) { // corner case
         return {};
     }
@@ -360,9 +441,9 @@ std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &input
     std::vector<pop_size_t> retval;
     std::vector<pop_size_t>::size_type front_id(0u);
     // Run fast-non-dominated sorting
-    auto tuple = fast_non_dominated_sorting(input_f);
+    fast_non_dominated_sorting_buffered(input_f, sorting_results);
     // Insert all non dominated fronts if not more than N
-    for (const auto &front : std::get<0>(tuple)) {
+    for (const auto &front : std::get<0>(sorting_results)) {
         if (retval.size() + front.size() <= N) {
             for (auto i : front) {
                 retval.push_back(i);
@@ -375,7 +456,7 @@ std::vector<pop_size_t> select_best_N_mo(const std::vector<vector_double> &input
             break;
         }
     }
-    auto front = std::get<0>(tuple)[front_id];
+    const auto front = std::get<0>(sorting_results)[front_id];
     std::vector<vector_double> non_dom_fits(front.size());
     // Run crowding distance for the front
     for (decltype(front.size()) i = 0u; i < front.size(); ++i) {
