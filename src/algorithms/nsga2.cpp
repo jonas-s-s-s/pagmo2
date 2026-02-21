@@ -135,6 +135,7 @@ population nsga2::evolve(population pop) const
     std::vector<vector_double::size_type> best_idx(NP), shuffle1(NP), shuffle2(NP);
     vector_double::size_type parent1_idx, parent2_idx;
     std::pair<vector_double, vector_double> children;
+    vector_double pop_cd(NP);   // crowding distances of the whole population
 
     // We're using select_best_N_mo_buffered(), which prevents re-allocation of this structure
     fnds_return_type best_N_buffer{};
@@ -187,7 +188,8 @@ population nsga2::evolve(population pop) const
         // 1 - We compute crowding distance and non dominated rank for the current population
         fast_non_dominated_sorting_buffered(pop.get_f(), fnds_buffer);
         auto& ndf = std::get<0>(fnds_buffer); // non dominated fronts [[0,3,2],[1,5,6],[4],...]
-        vector_double pop_cd(NP);         // crowding distances of the whole population
+        // Reset the pop_cd to being empty - that is, set all values to zero
+        std::fill(pop_cd.begin(), pop_cd.end(), 0);
         auto& ndr = std::get<3>(fnds_buffer); // non domination rank [0,1,0,0,2,1,1, ... ]
         for (const auto &front_idxs : ndf) {
             if (front_idxs.size() == 1u) { // handles the case where the front has collapsed to one point
