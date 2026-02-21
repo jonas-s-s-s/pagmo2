@@ -135,9 +135,8 @@ population nsga2::evolve(population pop) const
     std::vector<vector_double::size_type> best_idx(NP), shuffle1(NP), shuffle2(NP);
     vector_double::size_type parent1_idx, parent2_idx;
     std::pair<vector_double, vector_double> children;
-    vector_double pop_cd(NP); // Crowding distances of the whole population
-    std::vector<vector_double> front_cd; // For the crowding distance loop
-    population popnew(pop); // Used to contain a copy of the old population
+    vector_double pop_cd(NP); // crowding distances of the whole population
+    std::vector<vector_double> front_cd; // for the crowding distance loop
 
     // We're using select_best_N_mo_buffered(), which prevents re-allocation of this structure
     fnds_return_type best_N_buffer{};
@@ -181,7 +180,7 @@ population nsga2::evolve(population pop) const
         }
 
         // At each generation we make a copy of the population into popnew
-        popnew = pop;
+        population popnew(pop);
 
         // We create some pseudo-random permutation of the population indexes
         std::shuffle(shuffle1.begin(), shuffle1.end(), m_e);
