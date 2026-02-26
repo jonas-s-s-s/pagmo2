@@ -8,7 +8,7 @@ mkdir build
 cd build
 
 cmake `
-    -G "Visual Studio 16 2019" `
+    -G "Visual Studio 17 2022" `
     -A x64 `
     -DCMAKE_PREFIX_PATH=C:\Miniconda\envs\pagmo `
     -DCMAKE_INSTALL_PREFIX=C:\Miniconda\envs\pagmo `

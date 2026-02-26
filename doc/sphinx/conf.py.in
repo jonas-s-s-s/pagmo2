@@ -384,4 +384,4 @@ texinfo_documents = [
 linkcheck_workers = 1
 
 # those can fail on remote CI
-linkcheck_ignore = [r'https://www.sciencedirect.com/*', r'https://ieeexplore.ieee.org/*']
+linkcheck_ignore = [r'https://www.sciencedirect.com/*', r'https://ieeexplore.ieee.org/*', r'http://hdl.handle.net/*']
